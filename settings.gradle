@@ -1,0 +1,4 @@
+rootProject.name = 'dsbot'
+
+include ':dsbot-core'
+project(':dsbot-core').projectDir = new File(settingsDir, '../dsbot-core')
