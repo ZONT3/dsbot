@@ -5,6 +5,7 @@ import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import ru.zont.dsbot.ConfigRG;
 import ru.zont.dsbot.media.MediaData;
+import ru.zont.dsbot.media.TrovoData;
 import ru.zont.dsbot.media.TwitchData;
 import ru.zont.dsbot.media.YoutubeData;
 import ru.zont.dsbot.core.GuildContext;
@@ -33,7 +34,8 @@ public class MediaWatcher extends WatcherAdapter {
             ConfigRG.BotConfig cfg = getBotConfig();
             YoutubeData yt = GuildContext.getInstanceGlobal(YoutubeData.class, () -> YoutubeData.newInstance(cfg));
             TwitchData ttv = GuildContext.getInstanceGlobal(TwitchData.class, () -> TwitchData.newInstance(cfg));
-            mediaDataList = List.of(yt, ttv);
+            TrovoData trovo = GuildContext.getInstanceGlobal(TrovoData.class, () -> TrovoData.newInstance(cfg));
+            mediaDataList = List.of(yt, ttv, trovo);
         } else {
             mediaDataList = null;
         }

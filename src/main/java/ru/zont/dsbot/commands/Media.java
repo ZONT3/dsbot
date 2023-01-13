@@ -15,6 +15,7 @@ import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import ru.zont.dsbot.ConfigRG;
+import ru.zont.dsbot.media.TrovoData;
 import ru.zont.dsbot.media.TwitchData;
 import ru.zont.dsbot.media.YoutubeData;
 import ru.zont.dsbot.core.GuildContext;
@@ -46,16 +47,20 @@ public class Media extends SlashCommandAdapter {
     public static final HashMap<String, String> SOURCE_IMAGES = new HashMap<>(){{
         put(SOURCE_YOUTUBE, YoutubeData.LOGO);
         put(SOURCE_TWITCH, TwitchData.LOGO);
+        put(SOURCE_TROVO, TrovoData.LOGO);
     }};
 
     public static final HashMap<String, Integer> SOURCE_COLORS = new HashMap<>(){{
         put(SOURCE_YOUTUBE, YoutubeData.COLOR);
         put(SOURCE_TWITCH, TwitchData.COLOR);
+        put(SOURCE_TROVO, TrovoData.COLOR);
     }};
+    public static final String SOURCE_TROVO = "trovo";
 
     private final LiteJSON sources;
     private final YoutubeData yt;
     private final TwitchData ttv;
+    private final TrovoData trovo;
 
     public Media(ZDSBot bot, GuildContext context) {
         super(bot, context);
@@ -69,9 +74,11 @@ public class Media extends SlashCommandAdapter {
             ConfigRG.BotConfig cfg = getBotConfig();
             yt = GuildContext.getInstanceGlobal(YoutubeData.class, () -> YoutubeData.newInstance(cfg));
             ttv = GuildContext.getInstanceGlobal(TwitchData.class, () -> TwitchData.newInstance(cfg));
+            trovo = GuildContext.getInstanceGlobal(TrovoData.class, () -> TrovoData.newInstance(cfg));
         } else {
             yt = null;
             ttv = null;
+            trovo = null;
         }
     }
 
@@ -184,6 +191,8 @@ public class Media extends SlashCommandAdapter {
             return SOURCE_YOUTUBE;
         if (ttv.linksHere(link))
             return SOURCE_TWITCH;
+        if (ttv.linksHere(link))
+            return SOURCE_TROVO;
         if (link.contains("vk.com") || link.contains("t.me"))
             throw new DescribedException(StringsRG.STR.get("media.err.unsupported_source"));
         throw new DescribedException(StringsRG.STR.get("media.err.link"));
@@ -200,6 +209,9 @@ public class Media extends SlashCommandAdapter {
             }
             case SOURCE_TWITCH -> {
                 return ttv.getName(link);
+            }
+            case SOURCE_TROVO -> {
+                return trovo.getName(link);
             }
         }
         throw new IllegalStateException();
