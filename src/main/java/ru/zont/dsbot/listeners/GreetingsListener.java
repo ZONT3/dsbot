@@ -123,17 +123,18 @@ public class GreetingsListener extends GuildListenerAdapter {
 
         if (!bureauInitialized) return;
         final String memberMention = member.getAsMention();
+        final String channelMention = bureauChannel.getAsMention();
 
         MessageChannel publicChannel = context.findChannel(cfg.greetingsChannel.getString());
         String greetingsMessagePublic = cfg.greetingsMessagePublic.getString();
         String greetingsMessagePrivate = cfg.greetingsMessagePrivate.getString();
 
         if (publicChannel != null && greetingsMessagePublic != null)
-            publicChannel.sendMessage(greetingsMessagePublic.formatted(memberMention)).queue();
+            publicChannel.sendMessage(greetingsMessagePublic.formatted(memberMention, channelMention)).queue();
         if (greetingsMessagePrivate != null)
             member.getUser().openPrivateChannel().complete()
-                    .sendMessage(greetingsMessagePrivate.formatted(memberMention, bureauChannel.getAsMention()))
-                    .queue();
+                .sendMessage(greetingsMessagePrivate.formatted(memberMention, channelMention))
+                .queue();
     }
 
     private void onReaction(GenericMessageReactionEvent event) {
