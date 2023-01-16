@@ -12,6 +12,6 @@ Configurable bot for usage in RP and similar projects
   - [x] YouTube
   - [x] Twitch
   - [ ] VK
-  - [ ] Trovo
+  - [x] Trovo
 - [x] Welcome message
 - [ ] Events from site
