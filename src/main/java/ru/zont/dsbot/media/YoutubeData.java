@@ -1,6 +1,7 @@
 package ru.zont.dsbot.media;
 
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.youtube.YouTube;
 import com.google.api.services.youtube.model.Channel;
@@ -10,6 +11,8 @@ import net.dv8tion.jda.api.entities.MessageEmbed;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import ru.zont.dsbot.ConfigRG;
 import ru.zont.dsbot.core.util.Strings;
 import ru.zont.dsbot.util.StringsRG;
@@ -17,12 +20,15 @@ import ru.zont.dsbot.util.StringsRG;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class YoutubeData extends MediaData<YoutubeData.VideoData> {
+    private static final Logger log = LoggerFactory.getLogger(YoutubeData.class);
+
     public static final Pattern LINK_PATTERN = Pattern.compile("https?://(?:\\w+\\.)?youtube\\.com/channel/([\\w-]+)(?:\\?.*)?(?:/.*)?");
     public static final String LOGO = "https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/YouTube_full-color_icon_%282017%29.svg/1024px-YouTube_full-color_icon_%282017%29.svg.png";
     public static final String VIDEO_FORMAT = "https://youtube.com/watch?v=%s";
@@ -162,6 +168,10 @@ public class YoutubeData extends MediaData<YoutubeData.VideoData> {
             String uploads = channel.getContentDetails()
                     .getRelatedPlaylists()
                     .getUploads();
+            if (uploads == null) {
+                log.error("'Uploaded' playlist does not exists for channel {}", channel.getSnippet().getTitle());
+                return Collections.emptyList();
+            }
             List<String> ids = api.playlistItems().list("contentDetails")
                     .setKey(key)
                     .setPlaylistId(uploads)
@@ -171,6 +181,9 @@ public class YoutubeData extends MediaData<YoutubeData.VideoData> {
                     .setKey(key)
                     .setId(String.join(",", ids))
                     .execute().getItems();
+        } catch (GoogleJsonResponseException e) {
+            log.error("Cannot get videos for %s".formatted(channel.getSnippet().getTitle()), e);
+            return Collections.emptyList();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
