@@ -191,7 +191,7 @@ public class Media extends SlashCommandAdapter {
             return SOURCE_YOUTUBE;
         if (ttv.linksHere(link))
             return SOURCE_TWITCH;
-        if (ttv.linksHere(link))
+        if (trovo.linksHere(link))
             return SOURCE_TROVO;
         if (link.contains("vk.com") || link.contains("t.me"))
             throw new DescribedException(StringsRG.STR.get("media.err.unsupported_source"));

@@ -25,7 +25,7 @@ import static ru.zont.dsbot.util.StringsRG.STR;
 
 public class TrovoData extends MediaData<TrovoData.TrovoStream> {
 
-    public static final Pattern USERNAME_PATTERN = Pattern.compile("https?://(?:\\w+\\.)?trovo\\.live/(\\w+)(?:\\?.*)?(?:/.*)?");
+    public static final Pattern USERNAME_PATTERN = Pattern.compile("https?://(?:\\w+\\.)?trovo\\.live/s/(\\w+)(?:\\?.*)?(?:/.*)?");
     private static final String CHANNEL_FORMAT = "https://trovo.live/s/%s";
     public static final String LOGO = "https://upload.wikimedia.org/wikipedia/commons/b/b9/Trovo_Logo.png";
     public static final int COLOR = 0x1AAB77;
@@ -79,6 +79,11 @@ public class TrovoData extends MediaData<TrovoData.TrovoStream> {
                 obj.get("thumbnail").getAsString(),
                 obj.get("profile_pic").getAsString()
         );
+    }
+
+    @Override
+    public int getUpdatePeriodMinutes() {
+        return 2;
     }
 
     private Channel getChannel(String userName) {
