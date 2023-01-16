@@ -4,29 +4,40 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import org.apache.commons.io.IOUtils;
+import ru.zont.dsbot.ConfigRG;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static ru.zont.dsbot.util.StringsRG.STR;
+
 public class TrovoData extends MediaData<TrovoData.TrovoStream> {
 
-    public static final Pattern USERNAME_PATTERN = Pattern.compile("https?://(?:\\w+\\.)?trovo\\.live/(\\w+)(?:\\?.*)?(?:/.*)?");
-    private static final String CHANNEL_URL_FORMAT = "https://trovo.live/s/%s";
+    public static final Pattern USERNAME_PATTERN = Pattern.compile("https?://(?:\\w+\\.)?trovo\\.live/s/(\\w+)(?:\\?.*)?(?:/.*)?");
+    private static final String CHANNEL_FORMAT = "https://trovo.live/s/%s";
+    public static final String LOGO = "https://upload.wikimedia.org/wikipedia/commons/b/b9/Trovo_Logo.png";
+    public static final int COLOR = 0x1AAB77;
     private final String clientId;
 
     public TrovoData(String clientId) {
         super(10000);
         this.clientId = clientId;
+    }
+
+    public static TrovoData newInstance(ConfigRG.BotConfig cfg) {
+        return new TrovoData(Objects.requireNonNull(cfg.trovoUserID.getString()));
     }
 
     @Override
@@ -38,7 +49,8 @@ public class TrovoData extends MediaData<TrovoData.TrovoStream> {
     public boolean linksHere(String link) {
         try {
             return getUserName(link) != null;
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) {
+        }
         return false;
     }
 
@@ -48,36 +60,35 @@ public class TrovoData extends MediaData<TrovoData.TrovoStream> {
         return m.group(1);
     }
 
-    private TwitchData.StreamData getStream(String link) {
+    private TrovoStream getStream(String link) throws IOException {
         final Channel channel = getChannel(getUserName(link));
+
         // TODO
         // URL: https://open-api.trovo.live/openplatform/channels/id
         // DATA: "{\"channel_id\":}".formatted(channel.channelId)
-        return null;
+
+        JsonObject obj = callAPI("https://open-api.trovo.live/openplatform/channels/id", "{\"channel_id\":\"%s\"}".formatted(channel.channelId));
+        if (!obj.has("channel_url")) throw new IllegalArgumentException("Invalid respond from REST API");
+        if (!obj.get("is_live").getAsBoolean()) return null;
+
+
+        return new TrovoStream(channel,
+                obj.get("live_title").getAsString(),
+                obj.get("started_at").getAsLong() * 1000,
+                obj.get("category_name").getAsString(),
+                obj.get("thumbnail").getAsString(),
+                obj.get("profile_pic").getAsString()
+        );
+    }
+
+    @Override
+    public int getUpdatePeriodMinutes() {
+        return 2;
     }
 
     private Channel getChannel(String userName) {
         try {
-            final URL url = new URL(CHANNEL_URL_FORMAT.formatted(userName));
-            final HttpURLConnection connection = ((HttpURLConnection) url.openConnection());
-            connection.setRequestMethod("POST");
-
-            connection.setRequestProperty("Accept", "application/json");
-            connection.setRequestProperty("Client-ID", clientId);
-
-            connection.setDoOutput(true);
-            OutputStreamWriter writer = new OutputStreamWriter(connection.getOutputStream());
-            writer.write("{\"user\":[%s]}".formatted(userName));
-            writer.flush();
-            writer.close();
-            connection.getOutputStream().close();
-
-            InputStream responseStream = connection.getResponseCode() / 100 == 2
-                    ? connection.getInputStream()
-                    : connection.getErrorStream();
-
-            final JsonElement element = JsonParser.parseString(IOUtils.toString(responseStream, StandardCharsets.UTF_8));
-            final JsonObject obj = element.getAsJsonObject();
+            final JsonObject obj = callAPI("https://open-api.trovo.live/openplatform/getusers", "{\"user\":[\"%s\"]}".formatted(userName));
 
             if (!obj.has("users")) throw new IllegalStateException("Invalid respond from REST API");
             final JsonArray users = obj.get("users").getAsJsonArray();
@@ -93,36 +104,91 @@ public class TrovoData extends MediaData<TrovoData.TrovoStream> {
         }
     }
 
+    private JsonObject callAPI(String urlString, String request) throws IOException {
+        final URL url = new URL(urlString);
+        final HttpURLConnection connection = ((HttpURLConnection) url.openConnection());
+        connection.setRequestMethod("POST");
+
+        connection.setRequestProperty("Accept", "application/json");
+        connection.setRequestProperty("Client-ID", clientId);
+
+        connection.setDoOutput(true);
+        OutputStreamWriter writer = new OutputStreamWriter(connection.getOutputStream());
+        writer.write(request);
+        writer.flush();
+        writer.close();
+        connection.getOutputStream().close();
+
+        InputStream responseStream = connection.getResponseCode() / 100 == 2
+                ? connection.getInputStream()
+                : connection.getErrorStream();
+
+        final JsonElement element = JsonParser.parseString(IOUtils.toString(responseStream, StandardCharsets.UTF_8));
+        return element.getAsJsonObject();
+    }
+
     @Override
     protected List<TrovoStream> getFirstPosts(String link) {
-        return null;
+        TrovoStream stream;
+        try {
+            stream = getStream(link);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        if (stream == null) {
+            return Collections.emptyList();
+        }
+
+        return List.of(stream);
     }
 
     @Override
     protected List<TrovoStream> getNextPosts(String link, long lastPosted) {
-        return null;
+        TrovoStream stream;
+        try {
+            stream = getStream(link);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        if (stream == null || stream.timestamp<=lastPosted) {
+            return Collections.emptyList();
+        }
+
+        return List.of(stream);
     }
 
     @Override
     protected MessageEmbed buildEmbed(TrovoStream post) {
-        return null;
+
+        return new EmbedBuilder()
+                .setColor(COLOR)
+                .setTitle(STR.get("media.new.stream"), CHANNEL_FORMAT.formatted(post.channel.userName))
+                .setAuthor(post.channel.userName,
+                        CHANNEL_FORMAT.formatted(post.channel.userName),
+                        post.userThumbnail)
+                .setThumbnail(LOGO)
+                .setImage(post.thumbnail)
+                .setDescription("**%s**".formatted(post.title))
+                .build();
     }
 
     @Override
     protected String getId(TrovoStream post) {
-        return null;
+        return "%s:%d".formatted(post.title, post.timestamp);
     }
 
     @Override
     protected long getPostTimestamp(TrovoStream post) {
-        return 0;
+        return post.timestamp;
     }
 
     /**
-     * @param title live_title
-     * @param timestamp started_at
-     * @param category category_name
-     * @param thumbnail thumbnail
+     * @param title         live_title
+     * @param timestamp     started_at
+     * @param category      category_name
+     * @param thumbnail     thumbnail
      * @param userThumbnail profile_pic
      */
     public record TrovoStream(
@@ -132,7 +198,8 @@ public class TrovoData extends MediaData<TrovoData.TrovoStream> {
             String category,
             String thumbnail,
             String userThumbnail
-    ) { }
+    ) {
+    }
 
     private record Channel(String channelId, String userName, String nickName) {
     }

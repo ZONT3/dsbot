@@ -55,7 +55,7 @@ public class ConfigRG extends ZDSBBasicConfig {
 
         public Entry ttvKey = new Entry();
         public Entry ttvSecret = new Entry();
-
+        public Entry trovoUserID = new Entry();
         public Entry googleKey = new Entry();
     }
 }
