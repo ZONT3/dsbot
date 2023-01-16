@@ -43,6 +43,7 @@ public class Media extends SlashCommandAdapter {
     public static final String SOURCE_YOUTUBE = "YouTube";
     public static final String SOURCE_TWITCH = "Twitch";
     public static final String SOURCE_VK = "VK";
+    public static final String SOURCE_TROVO = "trovo";
 
     public static final HashMap<String, String> SOURCE_IMAGES = new HashMap<>(){{
         put(SOURCE_YOUTUBE, YoutubeData.LOGO);
@@ -55,7 +56,6 @@ public class Media extends SlashCommandAdapter {
         put(SOURCE_TWITCH, TwitchData.COLOR);
         put(SOURCE_TROVO, TrovoData.COLOR);
     }};
-    public static final String SOURCE_TROVO = "trovo";
 
     private final LiteJSON sources;
     private final YoutubeData yt;

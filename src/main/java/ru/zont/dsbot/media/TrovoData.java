@@ -63,14 +63,9 @@ public class TrovoData extends MediaData<TrovoData.TrovoStream> {
     private TrovoStream getStream(String link) throws IOException {
         final Channel channel = getChannel(getUserName(link));
 
-        // TODO
-        // URL: https://open-api.trovo.live/openplatform/channels/id
-        // DATA: "{\"channel_id\":}".formatted(channel.channelId)
-
         JsonObject obj = callAPI("https://open-api.trovo.live/openplatform/channels/id", "{\"channel_id\":\"%s\"}".formatted(channel.channelId));
         if (!obj.has("channel_url")) throw new IllegalArgumentException("Invalid respond from REST API");
         if (!obj.get("is_live").getAsBoolean()) return null;
-
 
         return new TrovoStream(channel,
                 obj.get("live_title").getAsString(),
@@ -136,10 +131,7 @@ public class TrovoData extends MediaData<TrovoData.TrovoStream> {
             throw new RuntimeException(e);
         }
 
-        if (stream == null) {
-            return Collections.emptyList();
-        }
-
+        if (stream == null) return Collections.emptyList();
         return List.of(stream);
     }
 
@@ -152,16 +144,13 @@ public class TrovoData extends MediaData<TrovoData.TrovoStream> {
             throw new RuntimeException(e);
         }
 
-        if (stream == null || stream.timestamp<=lastPosted) {
+        if (stream == null || stream.timestamp <= lastPosted)
             return Collections.emptyList();
-        }
-
         return List.of(stream);
     }
 
     @Override
     protected MessageEmbed buildEmbed(TrovoStream post) {
-
         return new EmbedBuilder()
                 .setColor(COLOR)
                 .setTitle(STR.get("media.new.stream"), CHANNEL_FORMAT.formatted(post.channel.userName))
@@ -184,13 +173,6 @@ public class TrovoData extends MediaData<TrovoData.TrovoStream> {
         return post.timestamp;
     }
 
-    /**
-     * @param title         live_title
-     * @param timestamp     started_at
-     * @param category      category_name
-     * @param thumbnail     thumbnail
-     * @param userThumbnail profile_pic
-     */
     public record TrovoStream(
             Channel channel,
             String title,
