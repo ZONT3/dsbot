@@ -3,11 +3,10 @@ package ru.zont.dsbot.listeners;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.MessageEmbed;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import ru.zont.dsbot.ConfigRG;
-import ru.zont.dsbot.media.MediaData;
-import ru.zont.dsbot.media.TrovoData;
-import ru.zont.dsbot.media.TwitchData;
-import ru.zont.dsbot.media.YoutubeData;
+import ru.zont.dsbot.media.*;
 import ru.zont.dsbot.core.GuildContext;
 import ru.zont.dsbot.core.ZDSBot;
 import ru.zont.dsbot.core.listeners.WatcherAdapter;
@@ -15,15 +14,17 @@ import ru.zont.dsbot.core.listeners.WatcherAdapter;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
+import java.util.stream.Stream;
 
 public class MediaWatcher extends WatcherAdapter {
+    private static final Logger log = LoggerFactory.getLogger(MediaWatcher.class);
     @Deprecated
     private static final List<LocalTime> updatePoints = List.of(
             LocalTime.of(15, 5),
             LocalTime.of(18, 5),
             LocalTime.of(22, 5));
 
-    private final List<MediaData<?>> mediaDataList;
+    private final List<MediaData> mediaDataList;
 
     private final HashSet<String> sourcesList = new HashSet<>();
 
@@ -32,10 +33,12 @@ public class MediaWatcher extends WatcherAdapter {
 
         if (context == null) {
             ConfigRG.BotConfig cfg = getBotConfig();
-            YoutubeData yt = GuildContext.getInstanceGlobal(YoutubeData.class, () -> YoutubeData.newInstance(cfg));
-            TwitchData ttv = GuildContext.getInstanceGlobal(TwitchData.class, () -> TwitchData.newInstance(cfg));
-            TrovoData trovo = GuildContext.getInstanceGlobal(TrovoData.class, () -> TrovoData.newInstance(cfg));
-            mediaDataList = List.of(yt, ttv, trovo);
+            MediaData yt = GuildContext.getInstanceGlobal(YoutubeData.class, () -> YoutubeData.newInstance(cfg));
+            MediaData ttv = GuildContext.getInstanceGlobal(TwitchData.class, () -> TwitchData.newInstance(cfg));
+            MediaData trovo = GuildContext.getInstanceGlobal(TrovoData.class, () -> TrovoData.newInstance(cfg));
+            mediaDataList = Stream.of(yt, ttv, trovo)
+                    .filter(Objects::nonNull).toList();
+            log.info("Initialized media: {}", mediaDataList.stream().map(MediaData::getName).toList());
         } else {
             mediaDataList = null;
         }
@@ -58,7 +61,7 @@ public class MediaWatcher extends WatcherAdapter {
 
         HashMap<String, List<MessageEmbed>> newPosts = new HashMap<>();
 
-        for (MediaData<?> m : mediaDataList) {
+        for (MediaData m : mediaDataList) {
             List<String> thisSources = sourcesList.stream().filter(m::linksHere).toList();
             if (thisSources.size() > 0 && m.shouldUpdate()) {
                 thisSources.forEach(s -> newPosts.put(s, m.getNewPosts(s)));

@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class YoutubeData extends MediaData<YoutubeData.VideoData> {
+public class YoutubeData extends MediaDataImpl<YoutubeData.VideoData> {
     private static final Logger log = LoggerFactory.getLogger(YoutubeData.class);
 
     public static final Pattern LINK_PATTERN = Pattern.compile("https?://(?:\\w+\\.)?youtube\\.com/channel/([\\w-]+)(?:\\?.*)?(?:/.*)?");
@@ -42,10 +42,12 @@ public class YoutubeData extends MediaData<YoutubeData.VideoData> {
 
 
     public static YoutubeData newInstance(ConfigRG.BotConfig cfg) {
-        return new YoutubeData(cfg.googleKey.getString());
+        final String key = cfg.googleKey.getString();
+        if (key == null) return null;
+        return new YoutubeData(key);
     }
 
-    public YoutubeData(String key) {
+    private YoutubeData(String key) {
         super(10000);
         if (key == null) throw new IllegalArgumentException("Google key not stated");
         this.key = key;
@@ -111,7 +113,7 @@ public class YoutubeData extends MediaData<YoutubeData.VideoData> {
     }
 
     @Override
-    public String getName(String link) {
+    public String getChannelTitle(String link) {
         Channel channel = getChannel(getId(link));
         return channel != null ? channel.getSnippet().getTitle() : null;
     }
@@ -203,6 +205,21 @@ public class YoutubeData extends MediaData<YoutubeData.VideoData> {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public String getLogo() {
+        return LOGO;
+    }
+
+    @Override
+    public int getColor() {
+        return COLOR;
+    }
+
+    @Override
+    public String getName() {
+        return "YouTube";
     }
 
     public record VideoData(Video video, Channel channel) { }

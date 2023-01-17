@@ -14,10 +14,10 @@ import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import ru.zont.dsbot.ConfigRG;
-import ru.zont.dsbot.media.TrovoData;
-import ru.zont.dsbot.media.TwitchData;
-import ru.zont.dsbot.media.YoutubeData;
+import ru.zont.dsbot.media.*;
 import ru.zont.dsbot.core.GuildContext;
 import ru.zont.dsbot.core.ZDSBot;
 import ru.zont.dsbot.core.commands.PermissionsUtil;
@@ -33,34 +33,16 @@ import ru.zont.dsbot.util.StringsRG;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 public class Media extends SlashCommandAdapter {
-    public static final String SOURCE_YOUTUBE = "YouTube";
-    public static final String SOURCE_TWITCH = "Twitch";
-    public static final String SOURCE_VK = "VK";
-    public static final String SOURCE_TROVO = "trovo";
-
-    public static final HashMap<String, String> SOURCE_IMAGES = new HashMap<>(){{
-        put(SOURCE_YOUTUBE, YoutubeData.LOGO);
-        put(SOURCE_TWITCH, TwitchData.LOGO);
-        put(SOURCE_TROVO, TrovoData.LOGO);
-    }};
-
-    public static final HashMap<String, Integer> SOURCE_COLORS = new HashMap<>(){{
-        put(SOURCE_YOUTUBE, YoutubeData.COLOR);
-        put(SOURCE_TWITCH, TwitchData.COLOR);
-        put(SOURCE_TROVO, TrovoData.COLOR);
-    }};
-
     private final LiteJSON sources;
-    private final YoutubeData yt;
-    private final TwitchData ttv;
-    private final TrovoData trovo;
+    private final List<MediaData> mediaDataList;
 
     public Media(ZDSBot bot, GuildContext context) {
         super(bot, context);
@@ -72,13 +54,14 @@ public class Media extends SlashCommandAdapter {
 
         if (context != null) {
             ConfigRG.BotConfig cfg = getBotConfig();
-            yt = GuildContext.getInstanceGlobal(YoutubeData.class, () -> YoutubeData.newInstance(cfg));
-            ttv = GuildContext.getInstanceGlobal(TwitchData.class, () -> TwitchData.newInstance(cfg));
-            trovo = GuildContext.getInstanceGlobal(TrovoData.class, () -> TrovoData.newInstance(cfg));
+            MediaData yt = GuildContext.getInstanceGlobal(YoutubeData.class, () -> YoutubeData.newInstance(cfg));
+            MediaData ttv = GuildContext.getInstanceGlobal(TwitchData.class, () -> TwitchData.newInstance(cfg));
+            MediaData trovo = GuildContext.getInstanceGlobal(TrovoData.class, () -> TrovoData.newInstance(cfg));
+            mediaDataList = Stream.of(yt, ttv, trovo)
+                    .filter(Objects::nonNull)
+                    .toList();
         } else {
-            yt = null;
-            ttv = null;
-            trovo = null;
+            mediaDataList = null;
         }
     }
 
@@ -123,10 +106,10 @@ public class Media extends SlashCommandAdapter {
         final String link = event.getOption("link", OptionMapping::getAsString);
         if (link == null) throw new IllegalStateException();
 
-        final String sourceType = getSourceType(link);
+        final MediaData source = getSource(link);
         final String sourceName;
         try {
-            sourceName = getSourceName(link, sourceType);
+            sourceName = getSourceName(link, source);
         } catch (IllegalArgumentException e) {
             throw new DescribedException(StringsRG.STR.get("media.err.link"));
         }
@@ -138,9 +121,9 @@ public class Media extends SlashCommandAdapter {
         responseTarget.respondEmbedLater(new EmbedBuilder()
                         .setTitle(StringsRG.STR.get("media.add.success"))
                         .setDescription(sourceName)
-                        .setThumbnail(SOURCE_IMAGES.getOrDefault(sourceType, null))
-                        .setColor(SOURCE_COLORS.get(sourceType))
-                        .setFooter(sourceType)
+                        .setThumbnail(source.getLogo())
+                        .setColor(source.getColor())
+                        .setFooter(source.getName())
                 .build());
     }
 
@@ -184,52 +167,43 @@ public class Media extends SlashCommandAdapter {
             throw new InvalidSyntaxException("Malformed URL");
     }
 
-    private String getSourceType(String link) {
+    private MediaData getSource(String link) {
         checkUrl(link);
-        link = link.toLowerCase();
-        if (yt.linksHere(link))
-            return SOURCE_YOUTUBE;
-        if (ttv.linksHere(link))
-            return SOURCE_TWITCH;
-        if (trovo.linksHere(link))
-            return SOURCE_TROVO;
+
+        final Optional<MediaData> any = mediaDataList.stream()
+                .filter(d -> d.linksHere(link))
+                .findAny();
+
+        if (any.isPresent())
+            return any.get();
+
         if (link.contains("vk.com") || link.contains("t.me"))
             throw new DescribedException(StringsRG.STR.get("media.err.unsupported_source"));
+
         throw new DescribedException(StringsRG.STR.get("media.err.link"));
     }
 
     @Nullable
-    private String getSourceName(@Nonnull String link, String sourceType) {
+    private String getSourceName(@Nonnull String link, MediaData source) {
         Objects.requireNonNull(link);
-        if (sourceType == null)
-            sourceType = getSourceType(link);
-        switch (sourceType) {
-            case SOURCE_YOUTUBE -> {
-                return yt.getName(link);
-            }
-            case SOURCE_TWITCH -> {
-                return ttv.getName(link);
-            }
-            case SOURCE_TROVO -> {
-                return trovo.getName(link);
-            }
-        }
-        throw new IllegalStateException();
+        if (source == null)
+            source = getSource(link);
+        return source.getChannelTitle(link);
     }
 
     @Nullable
     private String getSourceTypeAndName(String link) {
-        String sourceType;
+        MediaData source;
         String sourceName;
         try {
-            sourceType = getSourceType(link);
-            sourceName = getSourceName(link, sourceType);
+            source = getSource(link);
+            sourceName = getSourceName(link, source);
         } catch (Exception e) {
-            sourceType = null;
+            source = null;
             sourceName = null;
         }
-        if (sourceType != null)
-            return "[%s] %s".formatted(sourceType, sourceName);
+        if (source != null)
+            return "[%s] %s".formatted(source.getName(), sourceName);
         return null;
     }
 

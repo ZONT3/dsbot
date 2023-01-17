@@ -17,13 +17,12 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static ru.zont.dsbot.util.StringsRG.STR;
 
-public class TrovoData extends MediaData<TrovoData.TrovoStream> {
+public class TrovoData extends MediaDataImpl<TrovoData.TrovoStream> {
 
     public static final Pattern USERNAME_PATTERN = Pattern.compile("https?://(?:\\w+\\.)?trovo\\.live/s/(\\w+)(?:\\?.*)?(?:/.*)?");
     private static final String CHANNEL_FORMAT = "https://trovo.live/s/%s";
@@ -31,17 +30,19 @@ public class TrovoData extends MediaData<TrovoData.TrovoStream> {
     public static final int COLOR = 0x1AAB77;
     private final String clientId;
 
-    public TrovoData(String clientId) {
+    private TrovoData(String clientId) {
         super(10000);
         this.clientId = clientId;
     }
 
     public static TrovoData newInstance(ConfigRG.BotConfig cfg) {
-        return new TrovoData(Objects.requireNonNull(cfg.trovoUserID.getString()));
+        final String userID = cfg.trovoUserID.getString();
+        if (userID == null) return null;
+        return new TrovoData(userID);
     }
 
     @Override
-    public String getName(String link) {
+    public String getChannelTitle(String link) {
         return getChannel(getUserName(link)).nickName;
     }
 
@@ -171,6 +172,21 @@ public class TrovoData extends MediaData<TrovoData.TrovoStream> {
     @Override
     protected long getPostTimestamp(TrovoStream post) {
         return post.timestamp;
+    }
+
+    @Override
+    public String getLogo() {
+        return LOGO;
+    }
+
+    @Override
+    public int getColor() {
+        return COLOR;
+    }
+
+    @Override
+    public String getName() {
+        return "Trovo";
     }
 
     public record TrovoStream(

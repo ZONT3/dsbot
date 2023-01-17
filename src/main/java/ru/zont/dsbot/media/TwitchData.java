@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
 
 import static ru.zont.dsbot.util.StringsRG.STR;
 
-public class TwitchData extends MediaData<TwitchData.StreamData> {
+public class TwitchData extends MediaDataImpl<TwitchData.StreamData> {
     public static final int COLOR = 0x6441A4;
     public static final Pattern ID_PATTERN = Pattern.compile("https?://(?:\\w+\\.)?twitch\\.tv/(\\w+)(?:\\?.*)?(?:/.*)?");
     public static final String LOGO = "https://assets.help.twitch.tv/Glitch_Purple_RGB.png";
@@ -25,10 +25,13 @@ public class TwitchData extends MediaData<TwitchData.StreamData> {
     private final TwitchHelix helix;
 
     public static TwitchData newInstance(ConfigRG.BotConfig cfg) {
-        return new TwitchData(cfg.ttvKey.getString(), cfg.ttvSecret.getString());
+        final String key = cfg.ttvKey.getString();
+        final String secret = cfg.ttvSecret.getString();
+        if (key == null || secret == null) return null;
+        return new TwitchData(key, secret);
     }
 
-    public TwitchData(String key, String secret) {
+    private TwitchData(String key, String secret) {
         super(10000);
         if (key == null || secret == null)
             throw new IllegalArgumentException("Twitch key and/or secret not stated");
@@ -41,7 +44,7 @@ public class TwitchData extends MediaData<TwitchData.StreamData> {
 
 
     @Override
-    public String getName(String link) {
+    public String getChannelTitle(String link) {
         return Objects.requireNonNull(getUser(getId(link))).getDisplayName();
     }
 
@@ -120,6 +123,21 @@ public class TwitchData extends MediaData<TwitchData.StreamData> {
     @Override
     protected long getPostTimestamp(StreamData post) {
         return post.stream.getStartedAtInstant().toEpochMilli();
+    }
+
+    @Override
+    public String getLogo() {
+        return LOGO;
+    }
+
+    @Override
+    public int getColor() {
+        return COLOR;
+    }
+
+    @Override
+    public String getName() {
+        return "Twitch";
     }
 
     public record StreamData(Stream stream, User user) { }
