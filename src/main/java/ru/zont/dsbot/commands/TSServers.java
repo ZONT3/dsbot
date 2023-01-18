@@ -17,17 +17,16 @@ import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import ru.zont.dsbot.ConfigRG;
-import ru.zont.dsbot.util.TSData;
 import ru.zont.dsbot.core.GuildContext;
 import ru.zont.dsbot.core.ZDSBot;
 import ru.zont.dsbot.core.commands.Input;
-import ru.zont.dsbot.core.commands.PermissionsUtil;
-import ru.zont.dsbot.core.commands.SlashCommandAdapter;
 import ru.zont.dsbot.core.commands.exceptions.InvalidSyntaxException;
 import ru.zont.dsbot.core.commands.exceptions.OnlySlashUsageException;
 import ru.zont.dsbot.core.util.LiteJSON;
 import ru.zont.dsbot.core.util.MessageSplitter;
 import ru.zont.dsbot.core.util.ResponseTarget;
+import ru.zont.dsbot.util.RgPermissions;
+import ru.zont.dsbot.util.TSData;
 
 import java.util.List;
 import java.util.Objects;
@@ -35,7 +34,7 @@ import java.util.stream.StreamSupport;
 
 import static ru.zont.dsbot.util.StringsRG.STR;
 
-public class TSServers extends SlashCommandAdapter {
+public class TSServers extends RGSlashCommandAdapter {
     private final LiteJSON servers;
 
     public TSServers(ZDSBot bot, GuildContext context) {
@@ -200,7 +199,7 @@ public class TSServers extends SlashCommandAdapter {
         return false;
     }
 
-    public boolean checkPermission(PermissionsUtil util) {
+    public boolean checkPermission(RgPermissions util) {
         return util.permSetAdmin();
     }
 }

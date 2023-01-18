@@ -18,13 +18,14 @@ import ru.zont.dsbot.core.util.ResponseTarget;
 import ru.zont.dsbot.core.commands.exceptions.InsufficientPermissionsException;
 import ru.zont.dsbot.core.commands.exceptions.InvalidSyntaxException;
 import ru.zont.dsbot.core.commands.exceptions.OnlySlashUsageException;
+import ru.zont.dsbot.util.RgPermissions;
 
 import java.time.OffsetDateTime;
 import java.util.List;
 
 import static ru.zont.dsbot.util.StringsRG.STR;
 
-public class Clear extends SlashCommandAdapter {
+public class Clear extends RGSlashCommandAdapter {
     public Clear(ZDSBot bot, GuildContext context) {
         super(bot, context);
     }
@@ -109,7 +110,7 @@ public class Clear extends SlashCommandAdapter {
     }
 
     @Override
-    public boolean checkPermission(PermissionsUtil util) {
+    public boolean checkPermission(RgPermissions util) {
         return util.permSetMessageManage();
     }
 

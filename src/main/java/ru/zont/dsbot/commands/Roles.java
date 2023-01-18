@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
 
 import static ru.zont.dsbot.util.StringsRG.STR;
 
-public class Roles extends CommandAdapter {
+public class Roles extends RGCommandAdapter {
 
     public static final String USER_MENTION_REGEX = "<@!?(\\d+)>";
 
@@ -307,8 +307,7 @@ public class Roles extends CommandAdapter {
     }
 
     @Override
-    public boolean checkPermission(MessageReceivedEvent event) {
-        final RgPermissions pu = RgPermissions.newInstance(this, event);
-        return pu.permSetCanManagePlayers();
+    public boolean checkPermission(RgPermissions util) {
+        return util.permSetCanManagePlayers();
     }
 }

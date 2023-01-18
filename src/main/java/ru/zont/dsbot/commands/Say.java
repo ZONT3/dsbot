@@ -16,12 +16,11 @@ import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import ru.zont.dsbot.core.GuildContext;
 import ru.zont.dsbot.core.ZDSBot;
 import ru.zont.dsbot.core.commands.Input;
-import ru.zont.dsbot.core.commands.PermissionsUtil;
-import ru.zont.dsbot.core.commands.SlashCommandAdapter;
 import ru.zont.dsbot.core.commands.exceptions.InvalidSyntaxException;
 import ru.zont.dsbot.core.commands.exceptions.OnlySlashUsageException;
 import ru.zont.dsbot.core.util.DescribedException;
 import ru.zont.dsbot.core.util.ResponseTarget;
+import ru.zont.dsbot.util.RgPermissions;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -33,7 +32,7 @@ import java.util.stream.Stream;
 
 import static ru.zont.dsbot.util.StringsRG.STR;
 
-public class Say extends SlashCommandAdapter {
+public class Say extends RGSlashCommandAdapter {
     public static final String TIMESTAMP_FORMAT = "dd.MM.yyyy HH:mm:ss";
     public static final List<String> TARGET_OPTS = List.of("target", "target-user", "target-id");
     public static final List<String> NOT_EMBED_OPTS = Stream
@@ -210,7 +209,7 @@ public class Say extends SlashCommandAdapter {
     }
 
     @Override
-    public boolean checkPermission(PermissionsUtil util) {
+    public boolean checkPermission(RgPermissions util) {
         return util.permSetAdminFromMain();
     }
 

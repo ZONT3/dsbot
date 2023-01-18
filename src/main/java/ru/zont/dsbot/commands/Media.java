@@ -1,6 +1,5 @@
 package ru.zont.dsbot.commands;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.ChannelType;
@@ -14,20 +13,20 @@ import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import ru.zont.dsbot.ConfigRG;
-import ru.zont.dsbot.media.*;
 import ru.zont.dsbot.core.GuildContext;
 import ru.zont.dsbot.core.ZDSBot;
-import ru.zont.dsbot.core.commands.PermissionsUtil;
-import ru.zont.dsbot.core.commands.SlashCommandAdapter;
 import ru.zont.dsbot.core.commands.exceptions.InvalidSyntaxException;
 import ru.zont.dsbot.core.util.DescribedException;
 import ru.zont.dsbot.core.util.LiteJSON;
 import ru.zont.dsbot.core.util.MessageSplitter;
 import ru.zont.dsbot.core.util.ResponseTarget;
+import ru.zont.dsbot.media.MediaData;
+import ru.zont.dsbot.media.TrovoData;
+import ru.zont.dsbot.media.TwitchData;
+import ru.zont.dsbot.media.YoutubeData;
 import ru.zont.dsbot.util.CommandSupport;
+import ru.zont.dsbot.util.RgPermissions;
 import ru.zont.dsbot.util.StringsRG;
 
 import javax.annotation.Nonnull;
@@ -36,11 +35,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-public class Media extends SlashCommandAdapter {
+public class Media extends RGSlashCommandAdapter {
     private final LiteJSON sources;
     private final List<MediaData> mediaDataList;
 
@@ -117,7 +115,7 @@ public class Media extends SlashCommandAdapter {
         if (sourceName == null)
             throw new DescribedException(StringsRG.STR.get("media.err.unknown_source"));
 
-        sources.opList((Consumer<JsonArray>) l -> l.add(link));
+        sources.addIfNotContains(link);
         responseTarget.respondEmbedLater(new EmbedBuilder()
                         .setTitle(StringsRG.STR.get("media.add.success"))
                         .setDescription(sourceName)
@@ -263,7 +261,7 @@ public class Media extends SlashCommandAdapter {
     }
 
     @Override
-    public boolean checkPermission(PermissionsUtil util) {
+    public boolean checkPermission(RgPermissions util) {
         return util.permSetAdmin();
     }
 }

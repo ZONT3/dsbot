@@ -1,12 +1,12 @@
 package ru.zont.dsbot;
 
-import ru.zont.dsbot.core.config.ZDSBBasicConfig;
+import ru.zont.dsbot.core.config.ZDSBContextConfig;
 import ru.zont.dsbot.core.config.ZDSBBotConfig;
 import ru.zont.dsbot.core.config.ZDSBConfig;
 
 import java.io.File;
 
-public class ConfigRG extends ZDSBBasicConfig {
+public class ConfigRG extends ZDSBContextConfig {
     public ConfigRG(String configName, File dir, ZDSBConfig inherit) {
         super(configName, dir, inherit);
         super.prefix = new Entry("rg.");
@@ -32,8 +32,9 @@ public class ConfigRG extends ZDSBBasicConfig {
     public Entry mediaVideoChannel = new Entry();
     public Entry mediaPostsChannel = new Entry();
     public Entry mediaPushingRole = new Entry();
+    public Entry botAdminRole = new Entry();
 
-    public static ConfigRG castConfig(ZDSBBasicConfig config) {
+    public static ConfigRG castConfig(ZDSBContextConfig config) {
         return (ConfigRG) config;
     }
 

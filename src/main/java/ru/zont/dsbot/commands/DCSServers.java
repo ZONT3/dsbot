@@ -17,6 +17,7 @@ import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import ru.zont.dsbot.ConfigRG;
 import ru.zont.dsbot.util.DCSData;
+import ru.zont.dsbot.util.RgPermissions;
 import ru.zont.dsbot.util.StringsRG;
 import ru.zont.dsbot.core.GuildContext;
 import ru.zont.dsbot.core.ZDSBot;
@@ -35,7 +36,7 @@ import java.util.stream.StreamSupport;
 
 import static ru.zont.dsbot.util.StringsRG.STR;
 
-public class DCSServers extends SlashCommandAdapter {
+public class DCSServers extends RGSlashCommandAdapter {
     private final LiteJSON servers;
     private final DCSData dcsData;
 
@@ -209,7 +210,7 @@ public class DCSServers extends SlashCommandAdapter {
     }
 
     @Override
-    public boolean checkPermission(PermissionsUtil util) {
+    public boolean checkPermission(RgPermissions util) {
         return util.permSetAdmin();
     }
 }

@@ -29,6 +29,7 @@ import ru.zont.dsbot.core.commands.exceptions.OnlySlashUsageException;
 import ru.zont.dsbot.core.config.ZDSBConfig;
 import ru.zont.dsbot.core.util.MessageSplitter;
 import ru.zont.dsbot.core.util.ResponseTarget;
+import ru.zont.dsbot.util.RgPermissions;
 
 import java.util.Collections;
 import java.util.List;
@@ -37,7 +38,7 @@ import java.util.stream.IntStream;
 
 import static ru.zont.dsbot.util.StringsRG.STR;
 
-public class Greetings extends SlashCommandAdapter {
+public class Greetings extends RGSlashCommandAdapter {
     public Greetings(ZDSBot bot, GuildContext context) {
         super(bot, context);
     }
@@ -243,7 +244,7 @@ public class Greetings extends SlashCommandAdapter {
     }
 
     @Override
-    public boolean checkPermission(PermissionsUtil util) {
+    public boolean checkPermission(RgPermissions util) {
         return util.permSetAdmin();
     }
 }
