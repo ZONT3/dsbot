@@ -42,6 +42,9 @@ public abstract class MediaDataImpl<T> implements MediaData {
     }
 
     @Override
+    public void doUpdate(List<String> links) { }
+
+    @Override
     public final List<MessageEmbed> getNewPosts(String link) {
         List<T> posts;
         if (!postsData.get().has(link)) posts = getFirstPosts(link);

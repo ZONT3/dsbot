@@ -18,11 +18,6 @@ import java.util.stream.Stream;
 
 public class MediaWatcher extends WatcherAdapter {
     private static final Logger log = LoggerFactory.getLogger(MediaWatcher.class);
-    @Deprecated
-    private static final List<LocalTime> updatePoints = List.of(
-            LocalTime.of(15, 5),
-            LocalTime.of(18, 5),
-            LocalTime.of(22, 5));
 
     private final List<MediaData> mediaDataList;
 
@@ -62,10 +57,15 @@ public class MediaWatcher extends WatcherAdapter {
         HashMap<String, List<MessageEmbed>> newPosts = new HashMap<>();
 
         for (MediaData m : mediaDataList) {
-            List<String> thisSources = sourcesList.stream().filter(m::linksHere).toList();
-            if (thisSources.size() > 0 && m.shouldUpdate()) {
-                thisSources.forEach(s -> newPosts.put(s, m.getNewPosts(s)));
-                m.scheduleNextUpdate();
+            try {
+                List<String> thisSources = sourcesList.stream().filter(m::linksHere).toList();
+                if (thisSources.size() > 0 && m.shouldUpdate()) {
+                    m.doUpdate(thisSources);
+                    thisSources.forEach(s -> newPosts.put(s, m.getNewPosts(s)));
+                    m.scheduleNextUpdate();
+                }
+            } catch (Exception e) {
+                log.error("MediaData {} has thrown an error during update", m.getName(), e);
             }
         }
 
@@ -106,21 +106,6 @@ public class MediaWatcher extends WatcherAdapter {
 
     private boolean isPostsEnabled(GuildContext context, ConfigRG cfg) {
         return getMediaChannel(context, cfg) != null;
-    }
-
-    @SuppressWarnings("unused")
-    @Deprecated
-    private LocalDateTime scheduleNextSlowYtUpdate() {
-        LocalTime now = LocalTime.now();
-        Optional<LocalTime> nextPointOptional = updatePoints.stream()
-                .filter(now::isBefore)
-                .findFirst();
-        boolean nextDay = nextPointOptional.isEmpty();
-        LocalTime nextPoint = nextPointOptional.orElse(updatePoints.get(0));
-        return LocalDateTime.now()
-                .withHour(nextPoint.getHour())
-                .withMinute(nextPoint.getMinute())
-                .plusDays(nextDay ? 1 : 0);
     }
 
     @Override

@@ -20,14 +20,19 @@ import ru.zont.dsbot.util.StringsRG;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class YoutubeData extends MediaDataImpl<YoutubeData.VideoData> {
     private static final Logger log = LoggerFactory.getLogger(YoutubeData.class);
+
+    private static final List<LocalTime> updatePoints = List.of(
+            LocalTime.of(15, 5),
+            LocalTime.of(18, 5),
+            LocalTime.of(22, 5));
 
     public static final Pattern LINK_PATTERN = Pattern.compile("https?://(?:\\w+\\.)?youtube\\.com/channel/([\\w-]+)(?:\\?.*)?(?:/.*)?");
     public static final String LOGO = "https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/YouTube_full-color_icon_%282017%29.svg/1024px-YouTube_full-color_icon_%282017%29.svg.png";
@@ -36,6 +41,8 @@ public class YoutubeData extends MediaDataImpl<YoutubeData.VideoData> {
     public static final int COLOR = 0xFF0202;
 
     private static final HashMap<String, String> link2id = new HashMap<>();
+    private static final HashMap<String, Channel> id2channel = new HashMap<>();
+    private static LocalDateTime nextCacheUpdate = null;
 
     private final YouTube api;
     private final String key;
@@ -61,16 +68,29 @@ public class YoutubeData extends MediaDataImpl<YoutubeData.VideoData> {
         }
     }
 
+    private void scheduleNextCacheUpdate() {
+        LocalTime now = LocalTime.now();
+        Optional<LocalTime> nextPointOptional = updatePoints.stream()
+                .filter(now::isBefore)
+                .findFirst();
+        boolean nextDay = nextPointOptional.isEmpty();
+        LocalTime nextPoint = nextPointOptional.orElse(updatePoints.get(0));
+        nextCacheUpdate = LocalDateTime.now()
+                .withHour(nextPoint.getHour())
+                .withMinute(nextPoint.getMinute())
+                .plusDays(nextDay ? 1 : 0);
+    }
+
     @Override
     public boolean linksHere(String link) {
         try {
-            getId(link);
+            getChannelId(link);
             return true;
         } catch (Exception ignored) { }
         return false;
     }
 
-    private static String getId(String link) {
+    private static String getChannelId(String link) {
         if (!link.contains("youtu"))
             throw new IllegalArgumentException("Not a YouTube channel link");
 
@@ -114,14 +134,14 @@ public class YoutubeData extends MediaDataImpl<YoutubeData.VideoData> {
 
     @Override
     public String getChannelTitle(String link) {
-        Channel channel = getChannel(getId(link));
+        Channel channel = getChannel(getChannelId(link), false);
         return channel != null ? channel.getSnippet().getTitle() : null;
     }
 
     @Override
     @Nonnull
     protected List<VideoData> getFirstPosts(String link) {
-        Channel channel = getChannel(getId(link));
+        Channel channel = getChannel(getChannelId(link), true);
         if (channel == null) throw new IllegalStateException("Failed to fetch a channel");
         return getVideos(channel, 1).stream()
                 .map(v -> new VideoData(v, channel))
@@ -131,7 +151,7 @@ public class YoutubeData extends MediaDataImpl<YoutubeData.VideoData> {
     @Override
     @Nonnull
     protected List<VideoData> getNextPosts(String link, long lastPost) {
-        Channel channel = getChannel(getId(link));
+        Channel channel = getChannel(getChannelId(link), true);
         if (channel == null) throw new IllegalStateException("Failed to fetch a channel");
         return getVideos(channel, 5).stream()
                 .map(v -> new VideoData(v, channel))
@@ -191,20 +211,75 @@ public class YoutubeData extends MediaDataImpl<YoutubeData.VideoData> {
         }
     }
 
-    private Channel getChannel(String id) {
+    @Override
+    public void doUpdate(List<String> links) {
         try {
-            List<Channel> found = api.channels().list("snippet,contentDetails")
-                    .setKey(key)
-                    .setId(id)
-                    .execute().getItems();
+            final List<String> toUpdate = links.stream()
+                    .map(link -> {
+                        try {
+                            return getChannelId(link);
+                        } catch (Exception ignored) {
+                        }
+                        return null;
+                    })
+                    .filter(Objects::nonNull)
+                    .map(id -> {
+                        final Channel cached = getCached(id);
+                        if (cached != null) return null;
+                        return id;
+                    })
+                    .filter(Objects::nonNull)
+                    .toList();
+
+            if (toUpdate.size() > 0) {
+                final List<Channel> channels = getChannels(toUpdate);
+                channels.forEach(c -> id2channel.put(c.getId(), c));
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    private Channel getChannel(String id, boolean privateCall) {
+        final Channel cached = getCached(id);
+        if (cached != null) return cached;
+
+        final String reason;
+        if (privateCall) reason = ". Check quota.";
+        else reason = " from public call.";
+        log.warn("Updating single channel {}{}", id, reason);
+        try {
+            List<Channel> found = getChannels(List.of(id));
             if (found.size() > 1)
                 throw new IllegalStateException("More than one result");
             if (found.size() == 0)
                 return null;
-            return found.get(0);
+
+            final Channel channel = found.get(0);
+            id2channel.put(id, channel);
+            return channel;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private Channel getCached(String id) {
+        final boolean cacheAlive = nextCacheUpdate != null && LocalDateTime.now().isBefore(nextCacheUpdate);
+        if (cacheAlive && id2channel.containsKey(id))
+            return id2channel.get(id);
+        else if (!cacheAlive) {
+            id2channel.clear();
+            scheduleNextCacheUpdate();
+        }
+        return null;
+    }
+
+    private List<Channel> getChannels(List<String> ids) throws IOException {
+        return api.channels().list("snippet,contentDetails")
+                .setKey(key)
+                .setId(String.join(",", ids))
+                .execute().getItems();
     }
 
     @Override

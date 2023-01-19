@@ -11,6 +11,8 @@ public interface MediaData {
 
     void scheduleNextUpdate();
 
+    void doUpdate(List<String> links);
+
     List<MessageEmbed> getNewPosts(String link);
 
     boolean linksHere(String link);
