@@ -149,7 +149,7 @@ public class Media extends RGSlashCommandAdapter {
         List<String> lines = sources.getList().parallelStream()
                 .map(s -> {
                     String sourceName = getSourceTypeAndName(s);
-                    if (sourceName != null) return sourceName;
+                    if (sourceName != null) return "- %s %s".formatted(sourceName, s);
                     else return "~~%s~~".formatted(s);
                 })
                 .toList();
