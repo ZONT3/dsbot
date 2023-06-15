@@ -217,6 +217,7 @@ public class Media extends RGSlashCommandAdapter {
                     String sourceName = getSourceTypeAndName(s);
                     return new Command.Choice(sourceName != null ? sourceName : s, s);
                 })
+                .limit(OptionData.MAX_CHOICES)
                 .toList()).complete();
     }
 
