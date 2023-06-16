@@ -54,7 +54,7 @@ public class Main {
                 .config(ConfigRG.class, ConfigRG.BotConfig.class)
                 .allCoreCommands()
                 .addCommandAdapters(Roles.class, Say.class, Clear.class, DCSServers.class, TSServers.class,
-                        Greetings.class, Media.class, Admin.class)
+                        Greetings.class, Media.class, Admin.class, Config.class)
                 .addGuildListeners(GreetingsListener.class, DCSWatcher.class, TSWatcher.class, MediaWatcher.class)
                 .addDefaultIntents()
                 .onJdaBuilder(b -> b.enableIntents(GatewayIntent.GUILD_MESSAGE_REACTIONS))

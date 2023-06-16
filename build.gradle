@@ -4,7 +4,7 @@ plugins {
 }
 
 group 'ru.zont.dsbot'
-version '2.1.4'
+version '2.1.5'
 
 shadowJar {
     archiveBaseName.set('dsbot')
