@@ -1,5 +1,6 @@
 package ru.zont.dsbot.listeners;
 
+import com.google.gson.JsonObject;
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.MessageEmbed;
@@ -11,8 +12,6 @@ import ru.zont.dsbot.core.GuildContext;
 import ru.zont.dsbot.core.ZDSBot;
 import ru.zont.dsbot.core.listeners.WatcherAdapter;
 
-import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.*;
 import java.util.stream.Stream;
 
@@ -74,30 +73,38 @@ public class MediaWatcher extends WatcherAdapter {
             MessageChannel mediaChannel = getMediaChannel(context, cfg);
             if (mediaChannel == null) return;
             List<String> mediaSources = getMediaSources(context);
+            final JsonObject notifications = getMediaNotifications(context);
 
-            List<MessageEmbed> posts = newPosts.keySet().stream()
-                    .filter(mediaSources::contains)
-                    .flatMap(link -> newPosts.get(link).stream())
-                    .toList();
-            post(cfg, mediaChannel, posts);
+            for (String link: newPosts.keySet()) {
+                if (!mediaSources.contains(link))
+                    continue;
+                post(cfg, mediaChannel, newPosts.get(link),
+                        notifications.has(link) ? notifications.get(link).getAsString() : "");
+            }
         });
     }
 
-    private void post(ConfigRG cfg, MessageChannel channel, List<MessageEmbed> posts) {
+    private void post(ConfigRG cfg, MessageChannel channel, List<MessageEmbed> posts, String messageText) {
         String roleId = cfg.mediaPushingRole.getString();
+        if (roleId != null)
+            messageText = String.join(messageText.isEmpty() ? "" : ", ", "<@&%s>".formatted(roleId), messageText);
+
         for (int i = 0; i < posts.size(); i += 10) {
             List<MessageEmbed> embeds = posts.subList(i, Math.min(i + 10, posts.size()));
-            if (roleId != null) {
-                channel.sendMessage(new MessageBuilder()
-                        .append("<@&%s>".formatted(roleId))
-                        .setEmbeds(embeds)
-                        .build()).queue();
-            } else channel.sendMessageEmbeds(embeds).queue();
+            final MessageBuilder messageBuilder = new MessageBuilder()
+                    .setEmbeds(embeds);
+            if (!messageText.isEmpty())
+                messageBuilder.append(messageText);
+            channel.sendMessage(messageBuilder.build()).queue();
         }
     }
 
     private List<String> getMediaSources(GuildContext context) {
         return context.getLJInstance("media").getList();
+    }
+
+    private JsonObject getMediaNotifications(GuildContext context) {
+        return context.getLJInstance("media-notifications").get();
     }
 
     private MessageChannel getMediaChannel(GuildContext context, ConfigRG cfg) {

@@ -1,8 +1,11 @@
 package ru.zont.dsbot.commands;
 
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.ChannelType;
+import net.dv8tion.jda.api.entities.IMentionable;
+import net.dv8tion.jda.api.entities.Mentions;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -27,27 +30,29 @@ import ru.zont.dsbot.media.TwitchData;
 import ru.zont.dsbot.media.YoutubeData;
 import ru.zont.dsbot.util.CommandSupport;
 import ru.zont.dsbot.util.RgPermissions;
-import ru.zont.dsbot.util.StringsRG;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static ru.zont.dsbot.util.StringsRG.STR;
+
 public class Media extends RGSlashCommandAdapter {
     private final LiteJSON sources;
+    private final LiteJSON notifications;
     private final List<MediaData> mediaDataList;
 
     public Media(ZDSBot bot, GuildContext context) {
         super(bot, context);
         if (context != null) {
             sources = context.getLJInstance("media");
+            notifications = context.getLJInstance("media-notifications");
         } else {
             sources = null;
+            notifications = null;
         }
 
         if (context != null) {
@@ -71,6 +76,25 @@ public class Media extends RGSlashCommandAdapter {
             case "add" -> add(event, responseTarget);
             case "rm" -> rm(event, responseTarget);
             case "list" -> list(responseTarget);
+
+            case "notification-add" -> {
+                final String link = event.getOption("link", OptionMapping::getAsString);
+                final Mentions mentions = event.getOption("mentions", OptionMapping::getMentions);
+                addNotification(link, mentions == null ? Collections.singletonList(event.getUser()) : Stream.concat(
+                                mentions.getRoles().stream(),
+                                mentions.getUsers().stream())
+                        .toList());
+                responseTarget.setOK();
+            }
+            case "notification-rm" -> {
+                final String link = event.getOption("link", OptionMapping::getAsString);
+                final Mentions mentions = event.getOption("mentions", OptionMapping::getMentions);
+                rmNotification(link, mentions == null ? null : Stream.concat(
+                                mentions.getRoles().stream(),
+                                mentions.getUsers().stream())
+                        .toList());
+                responseTarget.setOK();
+            }
 
             case "videos-set-channel" -> {
                 CommandSupport.setChannel(cfg.mediaVideoChannel, event);
@@ -109,19 +133,19 @@ public class Media extends RGSlashCommandAdapter {
         try {
             sourceName = getSourceName(link, source);
         } catch (IllegalArgumentException e) {
-            throw new DescribedException(StringsRG.STR.get("media.err.link"));
+            throw new DescribedException(STR.get("media.err.link"));
         }
 
         if (sourceName == null)
-            throw new DescribedException(StringsRG.STR.get("media.err.unknown_source"));
+            throw new DescribedException(STR.get("media.err.unknown_source"));
 
         sources.addIfNotContains(link);
         responseTarget.respondEmbedLater(new EmbedBuilder()
-                        .setTitle(StringsRG.STR.get("media.add.success"))
-                        .setDescription(sourceName)
-                        .setThumbnail(source.getLogo())
-                        .setColor(source.getColor())
-                        .setFooter(source.getName())
+                .setTitle(STR.get("media.add.success"))
+                .setDescription(sourceName)
+                .setThumbnail(source.getLogo())
+                .setColor(source.getColor())
+                .setFooter(source.getName())
                 .build());
     }
 
@@ -140,8 +164,8 @@ public class Media extends RGSlashCommandAdapter {
         if (success)
             responseTarget.setOK();
         else responseTarget.respondEmbedNow(new EmbedBuilder()
-                        .setDescription(StringsRG.STR.get("common.err.rm"))
-                        .setColor(ResponseTarget.WARNING_COLOR)
+                .setDescription(STR.get("common.err.rm"))
+                .setColor(ResponseTarget.WARNING_COLOR)
                 .build());
     }
 
@@ -155,9 +179,34 @@ public class Media extends RGSlashCommandAdapter {
                 .toList();
         responseTarget.respondEmbedsNow(MessageSplitter.embeds(String.join("\n", lines),
                 new EmbedBuilder()
-                        .setTitle(StringsRG.STR.get("media.list"))
+                        .setTitle(STR.get("media.list"))
                         .setColor(0x3030b0)
                         .build()));
+    }
+
+    private void addNotification(String link, List<IMentionable> mentions) {
+        final JsonObject currentObj = notifications.get();
+        final String currentStr = currentObj.has(link) ? currentObj.get(link).getAsString() : "";
+        final Set<String> current = new HashSet<>(Set.of(currentStr.split(",\\s*")));
+        current.addAll(mentions.stream().map(IMentionable::getAsMention).toList());
+        notifications.op((Consumer<JsonObject>) o -> o.addProperty(link, String.join(", ", current)));
+    }
+
+    private void rmNotification(String link, @Nullable List<IMentionable> mentions) {
+        final JsonObject currentObj = notifications.get();
+        final String currentStr = currentObj.has(link) ? currentObj.get(link).getAsString() : "";
+        final Set<String> current = new HashSet<>(Set.of(currentStr.split(",\\s*")));
+
+        final String newStr;
+        if (mentions != null) {
+            mentions.stream().map(IMentionable::getAsMention).toList().forEach(current::remove);
+            newStr = String.join(", ", current);
+        } else newStr = "";
+
+        if (newStr.isEmpty() && currentObj.has(link))
+            notifications.op((Consumer<JsonObject>) o -> o.remove(link));
+        else if (!newStr.isEmpty())
+            notifications.op((Consumer<JsonObject>) o -> o.addProperty(link, newStr));
     }
 
     private void checkUrl(String url) {
@@ -176,9 +225,9 @@ public class Media extends RGSlashCommandAdapter {
             return any.get();
 
         if (link.contains("vk.com") || link.contains("t.me"))
-            throw new DescribedException(StringsRG.STR.get("media.err.unsupported_source"));
+            throw new DescribedException(STR.get("media.err.unsupported_source"));
 
-        throw new DescribedException(StringsRG.STR.get("media.err.link"));
+        throw new DescribedException(STR.get("media.err.link"));
     }
 
     @Nullable
@@ -207,6 +256,25 @@ public class Media extends RGSlashCommandAdapter {
 
     @Override
     public void onSlashCommandAutoComplete(CommandAutoCompleteInteractionEvent event) {
+        if (event.getSubcommandName() != null && event.getSubcommandName().startsWith("notification")) {
+            if ("link".equals(event.getFocusedOption().getName()))
+                autoCompleteSources(event);
+            else {
+                if (notifications == null)
+                    event.replyChoices(Collections.emptyList()).complete();
+                else
+                    event.replyChoices(notifications.get().entrySet().stream()
+                                    .filter(e -> e.getKey().equals(event.getOption("link", OptionMapping::getAsString)))
+                                    .flatMap(e -> Arrays.stream(e.getValue().getAsString().split(",\\s*")))
+                                    .map(str -> new Command.Choice(str, str))
+                                    .limit(OptionData.MAX_CHOICES)
+                                    .toList())
+                            .complete();
+            }
+        } else autoCompleteSources(event);
+    }
+
+    private void autoCompleteSources(CommandAutoCompleteInteractionEvent event) {
         if (sources == null) {
             event.replyChoices(Collections.emptyList()).complete();
             return;
@@ -224,25 +292,32 @@ public class Media extends RGSlashCommandAdapter {
     @Override
     public SlashCommandData getSlashCommand() {
         return Commands.slash(getName(), getShortDesc()).addSubcommands(
-                new SubcommandData("add", StringsRG.STR.get("media.add"))
-                        .addOption(OptionType.STRING, "link", StringsRG.STR.get("media.opt.link"), true),
-                new SubcommandData("rm", StringsRG.STR.get("media.rm"))
-                        .addOption(OptionType.STRING, "link", StringsRG.STR.get("media.opt.link"), true, true),
-                new SubcommandData("list", StringsRG.STR.get("media.list")),
+                new SubcommandData("add", STR.get("media.add"))
+                        .addOption(OptionType.STRING, "link", STR.get("media.opt.link"), true),
+                new SubcommandData("rm", STR.get("media.rm"))
+                        .addOption(OptionType.STRING, "link", STR.get("media.opt.link"), true, true),
+                new SubcommandData("list", STR.get("media.list")),
 
-                new SubcommandData("videos-set-channel", StringsRG.STR.get("media.videos.set_channel")).addOptions(
-                        new OptionData(OptionType.CHANNEL, "channel", StringsRG.STR.get("monitoring.opt.channel"), true)
+                new SubcommandData("videos-set-channel", STR.get("media.videos.set_channel")).addOptions(
+                        new OptionData(OptionType.CHANNEL, "channel", STR.get("monitoring.opt.channel"), true)
                                 .setChannelTypes(ChannelType.TEXT, ChannelType.NEWS)),
-                new SubcommandData("videos-disable", StringsRG.STR.get("media.videos.disable")),
+                new SubcommandData("videos-disable", STR.get("media.videos.disable")),
 
-                new SubcommandData("posts-set-channel", StringsRG.STR.get("media.posts.set_channel")).addOptions(
-                        new OptionData(OptionType.CHANNEL, "channel", StringsRG.STR.get("monitoring.opt.channel"), true)
+                new SubcommandData("posts-set-channel", STR.get("media.posts.set_channel")).addOptions(
+                        new OptionData(OptionType.CHANNEL, "channel", STR.get("monitoring.opt.channel"), true)
                                 .setChannelTypes(ChannelType.TEXT, ChannelType.NEWS)),
-                new SubcommandData("posts-disable", StringsRG.STR.get("media.posts.disable")),
+                new SubcommandData("posts-disable", STR.get("media.posts.disable")),
 
-                new SubcommandData("role", StringsRG.STR.get("media.push_role"))
-                        .addOption(OptionType.ROLE, "role", StringsRG.STR.get("common.opt.role"), true),
-                new SubcommandData("role-disable", StringsRG.STR.get("media.push_role.disable"))
+                new SubcommandData("role", STR.get("media.push_role"))
+                        .addOption(OptionType.ROLE, "role", STR.get("common.opt.role"), true),
+                new SubcommandData("role-disable", STR.get("media.push_role.disable")),
+
+                new SubcommandData("notification-add", STR.get("media.notification.add"))
+                        .addOption(OptionType.STRING, "link", STR.get("media.opt.link"), true, true)
+                        .addOption(OptionType.STRING, "mentions", STR.get("media.opt.notification.add.mentions")),
+                new SubcommandData("notification-rm", STR.get("media.notification.rm"))
+                        .addOption(OptionType.STRING, "link", STR.get("media.opt.link"), true, true)
+                        .addOption(OptionType.STRING, "mentions", STR.get("media.opt.notification.rm.mentions"), false, true)
         );
     }
 
@@ -253,7 +328,7 @@ public class Media extends RGSlashCommandAdapter {
 
     @Override
     public String getShortDesc() {
-        return StringsRG.STR.get("media.des.short");
+        return STR.get("media.des.short");
     }
 
     @Override
